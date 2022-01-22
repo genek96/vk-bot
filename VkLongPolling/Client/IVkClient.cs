@@ -4,6 +4,6 @@ namespace VkLongPolling.Client;
 
 internal interface IVkClient
 {
-    Task<SessionInfo> GetLongPollServerAsync();
+    Task<SessionInfo> GetLongPollSessionAsync();
     Task<LongPollResponse?> GetUpdatesAsync(SessionInfo sessionInfo, CancellationToken cancellationToken);
 }

@@ -13,7 +13,7 @@ internal class VkClient : IDisposable, IVkClient
         _client = new(handler);
     }
 
-    public async Task<SessionInfo> GetLongPollServerAsync()
+    public async Task<SessionInfo> GetLongPollSessionAsync()
     {
         var (url, httpContent) = new RequestBuilder(clientSettings.ServerAddress)
             .AddPath("groups.getLongPollServer")
@@ -54,7 +54,13 @@ internal class VkClient : IDisposable, IVkClient
             throw new HttpRequestException("Unsuccessful status code", null, responseMessage.StatusCode);
 
         var response = await JsonSerializer.DeserializeAsync<ServerResponse<T>>(
-            await responseMessage.Content.ReadAsStreamAsync());
+            await responseMessage.Content.ReadAsStreamAsync(),
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = new SnakeCaseNamingPolicy(),
+                Converters = { new UpdateEventConverter() }
+            }
+        );
 
         if (response == null)
             return null;
