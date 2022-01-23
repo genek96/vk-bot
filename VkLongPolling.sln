@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VkLongPolling", "VkLongPoll
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{8C60206E-E379-4CFD-A319-AB5D682B8AC1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VkBot", "VkBot\VkBot.csproj", "{1C017B4E-AE0F-4814-A91D-4FC16EBB150F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{8C60206E-E379-4CFD-A319-AB5D682B8AC1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C60206E-E379-4CFD-A319-AB5D682B8AC1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C60206E-E379-4CFD-A319-AB5D682B8AC1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C017B4E-AE0F-4814-A91D-4FC16EBB150F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C017B4E-AE0F-4814-A91D-4FC16EBB150F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C017B4E-AE0F-4814-A91D-4FC16EBB150F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C017B4E-AE0F-4814-A91D-4FC16EBB150F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

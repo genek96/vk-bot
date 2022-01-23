@@ -39,6 +39,8 @@ public class LongPoller
                     await handler.HandleAsync(updateEvent.Object);
                 }
             }
+
+            sessionInfo = new SessionInfo(sessionInfo.Server, sessionInfo.Key, updatesResponse.Ts!);
         }
     }
 

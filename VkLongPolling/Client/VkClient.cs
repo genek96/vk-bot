@@ -25,7 +25,10 @@ internal class VkClient : IDisposable, IVkClient
             .Build();
 
         var response = await _client.PostAsync(url, httpContent);
-        return (await ProcessResponseAsync<SessionInfo>(response))!;
+        var serverResponse = await ProcessResponseAsync<ServerResponse<SessionInfo>>(response);
+        if (serverResponse == null || serverResponse.Response == null)
+            throw new HttpRequestException(serverResponse?.Error?.ErrorMsg ?? "Failed to get session info");
+        return serverResponse.Response;
     }
 
     public async Task<LongPollResponse?> GetUpdatesAsync(SessionInfo sessionInfo, CancellationToken cancellationToken)
@@ -34,7 +37,7 @@ internal class VkClient : IDisposable, IVkClient
             .AddQueryParam("act", "a_check")
             .AddQueryParam("key", sessionInfo.Key)
             .AddQueryParam("ts", sessionInfo.Ts)
-            .AddQueryParam("wait", clientSettings.waitTimeout.ToString())
+            .AddQueryParam("wait", clientSettings.WaitTimeout.ToString())
             .Build();
 
         var response = await _client.GetAsync(request.Url, cancellationToken);
@@ -53,7 +56,7 @@ internal class VkClient : IDisposable, IVkClient
         if (!responseMessage.IsSuccessStatusCode)
             throw new HttpRequestException("Unsuccessful status code", null, responseMessage.StatusCode);
 
-        var response = await JsonSerializer.DeserializeAsync<ServerResponse<T>>(
+        var response = await JsonSerializer.DeserializeAsync<T>(
             await responseMessage.Content.ReadAsStreamAsync(),
             new JsonSerializerOptions
             {
@@ -62,12 +65,7 @@ internal class VkClient : IDisposable, IVkClient
             }
         );
 
-        if (response == null)
-            return null;
-        if (response.Response == null && response.Error != null)
-            throw new HttpRequestException(response.Error.ErrorMsg);
-
-        return response.Response;
+        return response;
     }
 
     private readonly ClientSettings clientSettings;
