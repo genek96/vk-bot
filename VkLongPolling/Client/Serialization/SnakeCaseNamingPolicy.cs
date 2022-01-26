@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace VkLongPolling.Client;
+namespace VkLongPolling.Client.Serialization;
 
 public class SnakeCaseNamingPolicy : JsonNamingPolicy
 {

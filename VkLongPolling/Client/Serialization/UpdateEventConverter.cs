@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using VkLongPolling.Models;
 
-namespace VkLongPolling.Client;
+namespace VkLongPolling.Client.Serialization;
 
 public class UpdateEventConverter: JsonConverter<UpdateEvent>
 {
@@ -21,6 +21,7 @@ public class UpdateEventConverter: JsonConverter<UpdateEvent>
         {
             "message_new" => updateJObject.Deserialize<NewMessageEvent>(options)!,
             "group_join" => updateJObject.Deserialize<JoinGroupEvent>(options)!,
+            "message_event" => updateJObject.Deserialize<MessageEvent>(options)!,
             _ => new UnknownEvent(updateJObject.ToString())
         };
 

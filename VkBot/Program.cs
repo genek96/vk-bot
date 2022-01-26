@@ -10,14 +10,33 @@ var config = new ConfigurationBuilder()
 
 var clientSettings = config.GetRequiredSection("ClientSettings").Get<ClientSettings>();
 
-LongPoller poller = new(clientSettings, new []
+LongPoller poller = new(clientSettings, new[]
 {
-    new UpdateEventHandler(e => e is NewMessageEvent, e =>
-    {
-        var message = e as NewMessageEvent;
-        Console.WriteLine($"Received message: {message.Message.Text}, from: {message.Message.FromId}");
-        return Task.CompletedTask;
-    })
+    new UpdateEventHandler(
+        e => e is NewMessageEvent, async (e, sendResponse) =>
+        {
+            var message = e as NewMessageEvent;
+            await sendResponse(
+                message!.Message.FromId,
+                "на связи",
+                new KeyboardBuilder()
+                    .AddTextButton("Хей")
+                    .AddTextButton("Хоп")
+                    .AddNewButtonsLine()
+                    .AddCallbackButton("Magic", new Payload("магия свершилась"), ButtonColor.Positive)
+            );
+        }),
+    new UpdateEventHandler(
+        e => e is MessageEvent, async (e, sendResponse) =>
+        {
+            var message = e as MessageEvent;
+            await sendResponse(
+                message!.UserId,
+                $"Я всё понял: {message.Payload.Text}",
+                new KeyboardBuilder()
+                    .AddTextButton("Как то так")
+            );
+        })
 });
 
 CancellationTokenSource tokenSource = new();

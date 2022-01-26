@@ -36,7 +36,11 @@ public class LongPoller
                 var handler = _handlers.FirstOrDefault(x => x.CanHandleEvent(updateEvent.Object));
                 if (handler != null)
                 {
-                    await handler.HandleAsync(updateEvent.Object);
+                    await handler.HandleAsync(updateEvent.Object, async (userId, message, keyboard) =>
+                    {
+                        var response = await client.SendMessageAsync(userId, message, keyboard);
+                        return string.IsNullOrEmpty(response.Error);
+                    });
                 }
             }
 

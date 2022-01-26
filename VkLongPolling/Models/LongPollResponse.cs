@@ -1,4 +1,7 @@
-﻿namespace VkLongPolling.Models;
+﻿using System.Text.Json.Serialization;
+using VkLongPolling.Client.Serialization;
+
+namespace VkLongPolling.Models;
 
 public record LongPollResponse(
     string? Ts,
@@ -6,17 +9,30 @@ public record LongPollResponse(
     int? Failed
 );
 
+[JsonConverter(typeof(UpdateEventConverter))]
 public record UpdateEvent(
     string Type,
     IUpdateEventObject Object,
     string GroupId
 );
 
-public interface IUpdateEventObject { }
+public interface IUpdateEventObject
+{
+}
 
 public record UnknownEvent(string Content) : IUpdateEventObject;
+
 public record JoinGroupEvent(int UserId, string JoinType) : IUpdateEventObject;
+
 public record NewMessageEvent(Message Message, ClientInfo ClientInfo) : IUpdateEventObject;
+
+public record MessageEvent(
+    int UserId,
+    int PeerId,
+    string EventId,
+    Payload Payload,
+    int ConversationMessageId
+) : IUpdateEventObject;
 
 public record Message(
     int Id,
