@@ -18,6 +18,7 @@ public class LongPoller
     public async Task StartPollingAsync(CancellationToken cancellationToken)
     {
         using VkClient client = new(_settings);
+        Responder responder = new(client);
 
         var sessionInfo = await client.GetLongPollSessionAsync();
         while (!cancellationToken.IsCancellationRequested)
@@ -37,11 +38,8 @@ public class LongPoller
                 var handler = _handlers.FirstOrDefault(x => x.CanHandleEvent(updateEvent.Object));
                 if (handler != null)
                 {
-                    await handler.HandleAsync(updateEvent.Object, async (userId, message, keyboard) =>
-                    {
-                        var response = await client.SendMessageAsync(userId, message, keyboard);
-                        return string.IsNullOrEmpty(response.Error);
-                    });
+                    await handler.HandleAsync(updateEvent.Object, responder);
+                    break;
                 }
             }
 

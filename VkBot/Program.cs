@@ -11,27 +11,29 @@ var clientSettings = config.GetRequiredSection("ClientSettings").Get<ClientSetti
 
 LongPoller poller = new(clientSettings, b => b
     .AddNewMessageHandler(e => true,
-        (message, responseSender) => responseSender(
+        (message, responseSender) => responseSender.SendMessageAsync(
             message.Message.FromId,
             "Хоба",
             new KeyboardBuilder()
                 .AddTextButton("Текст")
                 .AddCallbackButton("Callback", new Payload("скрытый текст"), ButtonColor.Positive)))
     .AddCallbackHandler(e => true,
-        (message, responseSender) => responseSender(
+        (message, responseSender) => responseSender.SendMessageEventAnswerAsync(
             message.UserId,
-            $"Ты отправил мне: {message.Payload.Text}",
-            new KeyboardBuilder()
-                .AddTextButton("Ещё текст")
-                .AddCallbackButton("Callback", new Payload("другой скрытый текст"), ButtonColor.Positive))));
+            message.EventId,
+            new SnackbarAnswer("Хобана"))
+    )
+);
 
 CancellationTokenSource tokenSource = new();
 var pollingTask = poller.StartPollingAsync(tokenSource.Token);
-
-while (Console.ReadLine() != "stop")
+var commandsReadTask = Task.Run(() =>
 {
-    Console.WriteLine("To stop app enter 'stop'");
-}
+    while (Console.ReadLine() != "stop")
+    {
+        Console.WriteLine("To stop app enter 'stop'");
+    }
+    tokenSource.Cancel();
+});
 
-tokenSource.Cancel();
-await pollingTask;
+await Task.WhenAny(pollingTask, commandsReadTask);

@@ -73,7 +73,10 @@ internal class VkClient : IVkClient
         return (await ProcessResponseAsync<SendMessageResponse>(response))!;
     }
 
-    public async Task<int> SendMessageEventAnswerAsync(int userId, string eventId, IMessageEventAnswer answer)
+    public async Task<CallbackAnswerResponse?> SendMessageEventAnswerAsync(
+        int userId,
+        string eventId,
+        IMessageEventAnswer answer)
     {
         var request = new RequestBuilder(_clientSettings.ServerAddress)
             .AddPath("messages.sendMessageEventAnswer")
@@ -86,7 +89,7 @@ internal class VkClient : IVkClient
             .Build();
 
         var response = await _client.GetAsync(request.Url);
-        return await ProcessResponseAsync<int>(response);
+        return await ProcessResponseAsync<CallbackAnswerResponse>(response);
     }
 
     public void Dispose()

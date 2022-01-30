@@ -18,3 +18,5 @@ public record OpenLinkAnswer(string Link) : IMessageEventAnswer
 {
     public string Type => "open_link";
 }
+
+public record CallbackAnswerResponse(int Response);
