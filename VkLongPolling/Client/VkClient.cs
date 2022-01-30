@@ -73,12 +73,28 @@ internal class VkClient : IVkClient
         return (await ProcessResponseAsync<SendMessageResponse>(response))!;
     }
 
+    public async Task<int> SendMessageEventAnswerAsync(int userId, string eventId, IMessageEventAnswer answer)
+    {
+        var request = new RequestBuilder(_clientSettings.ServerAddress)
+            .AddPath("messages.sendMessageEventAnswer")
+            .AddQueryParam("access_token", _clientSettings.Token)
+            .AddQueryParam("v", _clientSettings.ApiVersion)
+            .AddQueryParam("user_id", userId.ToString())
+            .AddQueryParam("event_id", eventId)
+            .AddQueryParam("peer_id", userId.ToString())
+            .AddQueryParam("event_data", JsonSerializer.Serialize(answer, _serializerOptions))
+            .Build();
+
+        var response = await _client.GetAsync(request.Url);
+        return await ProcessResponseAsync<int>(response);
+    }
+
     public void Dispose()
     {
         _client.Dispose();
     }
 
-    private async Task<T?> ProcessResponseAsync<T>(HttpResponseMessage? responseMessage) where T : class
+    private async Task<T?> ProcessResponseAsync<T>(HttpResponseMessage? responseMessage)
     {
         if (responseMessage == null)
             throw new HttpRequestException("No response received");
