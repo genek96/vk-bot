@@ -8,10 +8,11 @@ namespace VkLongPolling;
 
 public class LongPoller
 {
-    public LongPoller(ClientSettings settings, UpdateEventHandler[] handlers)
+    public LongPoller(ClientSettings settings, Func<EventHandlersChainBuilder, EventHandlersChainBuilder> builder)
     {
         _settings = settings;
-        _handlers = handlers;
+        var b = new EventHandlersChainBuilder();
+        _handlers = builder(b).Build();
     }
 
     public async Task StartPollingAsync(CancellationToken cancellationToken)
