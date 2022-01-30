@@ -6,7 +6,7 @@ namespace VkLongPolling.EventHandlers;
 public class UpdateEventHandler
 {
     public UpdateEventHandler(
-        Predicate<IUpdateEventObject> canHandleEvent,
+        Func<IUpdateEventObject, ValueTask<bool>> canHandleEvent,
         Func<IUpdateEventObject, IResponder, Task> handleAsync
     )
     {
@@ -14,6 +14,6 @@ public class UpdateEventHandler
         HandleAsync = handleAsync;
     }
 
-    public Predicate<IUpdateEventObject> CanHandleEvent { get; init; }
+    public Func<IUpdateEventObject, ValueTask<bool>> CanHandleEvent { get; init; }
     public Func<IUpdateEventObject, IResponder, Task> HandleAsync { get; init; }
 }

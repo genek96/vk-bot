@@ -11,7 +11,7 @@ public class EventHandlersChainBuilder
     }
 
     public EventHandlersChainBuilder AddNewMessageHandler(
-        Predicate<NewMessageEvent> canHandleEvent,
+        Func<NewMessageEvent, ValueTask<bool>> canHandleEvent,
         Func<NewMessageEvent, IResponder, Task> handleAsync
     )
     {
@@ -20,7 +20,7 @@ public class EventHandlersChainBuilder
     }
 
     public EventHandlersChainBuilder AddCallbackHandler(
-        Predicate<MessageEvent> canHandleEvent,
+        Func<MessageEvent, ValueTask<bool>> canHandleEvent,
         Func<MessageEvent, IResponder, Task> handleAsync
     )
     {

@@ -35,7 +35,7 @@ public class LongPoller
 
             foreach (var updateEvent in updatesResponse.Updates ?? Array.Empty<UpdateEvent>())
             {
-                var handler = _handlers.FirstOrDefault(x => x.CanHandleEvent(updateEvent.Object));
+                var handler = await GetEventHandlerAsync(updateEvent);
                 if (handler != null)
                 {
                     await handler.HandleAsync(updateEvent.Object, responder);
@@ -45,6 +45,19 @@ public class LongPoller
 
             sessionInfo = new SessionInfo(sessionInfo.Server, sessionInfo.Key, updatesResponse.Ts!);
         }
+    }
+
+    private async Task<UpdateEventHandler?> GetEventHandlerAsync(UpdateEvent @event)
+    {
+        foreach (var handler in _handlers)
+        {
+            if (await handler.CanHandleEvent(@event.Object))
+            {
+                return handler;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<SessionInfo> HandleFailureAsync(

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using VkBot.Storing;
 using VkLongPolling;
 using VkLongPolling.Configuration;
 using VkLongPolling.Models;
@@ -9,15 +10,34 @@ var config = new ConfigurationBuilder()
 
 var clientSettings = config.GetRequiredSection("ClientSettings").Get<ClientSettings>();
 
+InMemoryUserStateStorage stateRepository = new();
 LongPoller poller = new(clientSettings, b => b
-    .AddNewMessageHandler(e => true,
+    .AddNewMessageHandler(async e =>
+    {
+        var state = await stateRepository.GetUserStateAsync(e.Message.FromId);
+        return state == UserState.Initial;
+    }, async (message, responseSender) =>
+    {
+        await stateRepository.SetUserState(message.Message.FromId, UserState.InProgress);
+        await responseSender.SendMessageAsync(
+            message.Message.FromId,
+            "Приветствую тебя, путник!",
+            new KeyboardBuilder()
+                .AddTextButton("Текст")
+                .AddCallbackButton("Callback", new Payload("скрытый текст"), ButtonColor.Positive));
+    })
+    .AddNewMessageHandler(async e =>
+        {
+            var state = await stateRepository.GetUserStateAsync(e.Message.FromId);
+            return state == UserState.InProgress;
+        },
         (message, responseSender) => responseSender.SendMessageAsync(
             message.Message.FromId,
-            "Хоба",
+            "Ну всё, давай уёбывай уже.",
             new KeyboardBuilder()
                 .AddTextButton("Текст")
                 .AddCallbackButton("Callback", new Payload("скрытый текст"), ButtonColor.Positive)))
-    .AddCallbackHandler(e => true,
+    .AddCallbackHandler(e => ValueTask.FromResult(true),
         (message, responseSender) => responseSender.SendMessageEventAnswerAsync(
             message.UserId,
             message.EventId,
@@ -33,6 +53,7 @@ var commandsReadTask = Task.Run(() =>
     {
         Console.WriteLine("To stop app enter 'stop'");
     }
+
     tokenSource.Cancel();
 });
 
