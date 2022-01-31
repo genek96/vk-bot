@@ -1,4 +1,4 @@
-﻿namespace VkBot.Storing;
+﻿namespace VkBot.Storing.Models;
 
 public enum UserState
 {

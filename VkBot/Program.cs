@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
+using VkBot.Configuration;
 using VkBot.Storing;
+using VkBot.Storing.Models;
 using VkLongPolling;
 using VkLongPolling.Configuration;
 using VkLongPolling.Models;
@@ -9,15 +11,19 @@ var config = new ConfigurationBuilder()
     .Build();
 
 var clientSettings = config.GetRequiredSection("ClientSettings").Get<ClientSettings>();
+var dbSettings = config.GetRequiredSection("DatabaseSettings").Get<DatabaseSettings>();
 
-InMemoryUserStateStorage stateRepository = new();
+// UserStateStorage stateRepository = new(new UserStateContext(dbSettings));
+
 LongPoller poller = new(clientSettings, b => b
     .AddNewMessageHandler(async e =>
     {
+        using UserStateStorage stateRepository = new(new UserStateContext(dbSettings));
         var state = await stateRepository.GetUserStateAsync(e.Message.FromId);
         return state == UserState.Initial;
     }, async (message, responseSender) =>
     {
+        using UserStateStorage stateRepository = new(new UserStateContext(dbSettings));
         await stateRepository.SetUserState(message.Message.FromId, UserState.InProgress);
         await responseSender.SendMessageAsync(
             message.Message.FromId,
@@ -28,6 +34,7 @@ LongPoller poller = new(clientSettings, b => b
     })
     .AddNewMessageHandler(async e =>
         {
+            using UserStateStorage stateRepository = new(new UserStateContext(dbSettings));
             var state = await stateRepository.GetUserStateAsync(e.Message.FromId);
             return state == UserState.InProgress;
         },

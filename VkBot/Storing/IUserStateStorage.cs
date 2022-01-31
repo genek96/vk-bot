@@ -1,4 +1,6 @@
-﻿namespace VkBot.Storing;
+﻿using VkBot.Storing.Models;
+
+namespace VkBot.Storing;
 
 public interface IUserStateStorage
 {
