@@ -14,7 +14,7 @@ public class LongPollerConfigurator
     {
         _userStateStorage = userStateStorage;
         _settings = settings;
-        _lastKeyboard = _menuKeyboard;
+        _lastKeyboard = GetMenuKeyboard;
     }
 
     public LongPoller Configure()
@@ -39,11 +39,11 @@ public class LongPollerConfigurator
                 });
 
                 var user = await _userStateStorage.GetUserAsync(e.Message.FromId);
-                _lastKeyboard = _menuKeyboard;
+                _lastKeyboard = GetMenuKeyboard;
                 await responseSender.SendMessageAsync(
                     e.Message.FromId,
                     "Приветствуем тебя в игре \"Фрилансер\"! С чего планируешь начать?\n" + GetStatusText(user!),
-                    _menuKeyboard
+                    GetMenuKeyboard
                 );
             })
             .AddNewMessageHandler(async e =>
@@ -145,11 +145,11 @@ public class LongPollerConfigurator
             }, async (e, responder) =>
             {
                 await _userStateStorage.SetUserStateAsync(e.Message.FromId, UserState.Idle);
-                _lastKeyboard = _menuKeyboard;
+                _lastKeyboard = GetMenuKeyboard;
                 await responder.SendMessageAsync(
                     e.Message.FromId,
                     "Нет работ - нет забот. Чем займёмся дальше?",
-                    _menuKeyboard);
+                    GetMenuKeyboard);
             })
             .AddNewMessageHandler(async e =>
             {
@@ -162,7 +162,7 @@ public class LongPollerConfigurator
                 await responder.SendMessageAsync(
                     e.Message.FromId,
                     "Чем займёмся дальше?\n" + GetStatusText(user),
-                    _lastKeyboard = _menuKeyboard
+                    _lastKeyboard = GetMenuKeyboard
                 );
             })
             .AddCallbackHandler(async e =>
@@ -185,7 +185,104 @@ public class LongPollerConfigurator
                 await responder.SendMessageAsync(
                     e.UserId,
                     "Чем займёмся дальше?\n" + GetStatusText(user!),
-                    _lastKeyboard = _menuKeyboard
+                    _lastKeyboard = GetMenuKeyboard
+                );
+            })
+            .AddNewMessageHandler(async e =>
+            {
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
+                return state == UserState.Idle && e.Message.Payload?.Text == "goToShop";
+            }, async (e, responder) =>
+            {
+                var user = await _userStateStorage.GetUserAsync(e.Message.FromId);
+                await _userStateStorage.SetUserStateAsync(e.Message.FromId, UserState.InShop);
+                var pcPrice = 100 * (100 / user!.WorkDuration);
+                _lastKeyboard = GetShopKeyboard(pcPrice);
+                await responder.SendMessageAsync(e.Message.FromId, "Что хотите приобрести?", _lastKeyboard);
+            })
+            .AddNewMessageHandler(async e =>
+            {
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
+                return state == UserState.InShop && e.Message.Payload?.Text is "newPc" or "energy";
+            }, async (e, responder) =>
+            {
+                var user = await _userStateStorage.GetUserAsync(e.Message.FromId);
+                var pcPrice = 100 * (100 / user!.WorkDuration);
+                if (e.Message.Payload?.Text == "newPc")
+                {
+                    if (user.Coins < pcPrice)
+                    {
+                        await responder.SendMessageAsync(
+                            e.Message.FromId,
+                            "К сожалению вам не хватает денег",
+                            _lastKeyboard = GetShopKeyboard(pcPrice)
+                        );
+                        return;
+                    }
+
+                    if (user.WorkDuration <= 2)
+                    {
+                        await responder.SendMessageAsync(
+                            e.Message.FromId,
+                            "Компов круче твоего пока не привезли. Может что нибудь другое?",
+                            _lastKeyboard = GetShopKeyboard(pcPrice)
+                        );
+                        return;
+                    }
+
+                    await _userStateStorage.UpdateUserAsync(e.Message.FromId, u =>
+                    {
+                        u.Coins -= pcPrice;
+                        u.WorkDuration -= 2;
+                    });
+                }
+                else
+                {
+                    if (user.Coins < 10)
+                    {
+                        await responder.SendMessageAsync(
+                            e.Message.FromId,
+                            "К сожалению вам не хватает денег",
+                            _lastKeyboard = GetShopKeyboard(pcPrice)
+                        );
+                        return;
+                    }
+
+                    if (user.Energy >= 10)
+                    {
+                        await responder.SendMessageAsync(
+                            e.Message.FromId,
+                            "Ты и так полон энергии. Присмотри что-нибдь ещё.",
+                            _lastKeyboard = GetShopKeyboard(pcPrice)
+                        );
+                        return;
+                    }
+
+                    await _userStateStorage.UpdateUserAsync(e.Message.FromId, u =>
+                    {
+                        u.Coins -= 10;
+                        u.Energy += 2;
+                    });
+                }
+
+                await responder.SendMessageAsync(
+                    e.Message.FromId,
+                    "Отличная покупка! Что-нибудь ещё?",
+                    _lastKeyboard = GetShopKeyboard(pcPrice)
+                );
+            })
+            .AddNewMessageHandler(async e =>
+            {
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
+                return state == UserState.InShop && e.Message.Payload?.Text == "back";
+            }, async (e, responder) =>
+            {
+                await _userStateStorage.SetUserStateAsync(e.Message.FromId, UserState.Idle);
+                var user = await _userStateStorage.GetUserAsync(e.Message.FromId);
+                await responder.SendMessageAsync(
+                    e.Message.FromId,
+                    GetStatusText(user!) + "\nЧем займёшься дальше?",
+                    _lastKeyboard = GetMenuKeyboard
                 );
             })
             .AddNewMessageHandler(
@@ -202,12 +299,19 @@ public class LongPollerConfigurator
                                                       $"Энергия: {user.Energy}\n" +
                                                       $"Время на работу: {user.WorkDuration}";
 
-    private Keyboard _menuKeyboard = new KeyboardBuilder()
+    private Keyboard GetMenuKeyboard => new KeyboardBuilder()
         .AddTextButton("Начать работать над заказом", new Payload("beginWork"))
         .AddNewButtonsLine()
         .AddTextButton("Отправиться в Магазин", new Payload("goToShop"))
         .AddNewButtonsLine()
         .AddTextButton("Лечь спать", new Payload("goToSleep"));
+
+    private Keyboard GetShopKeyboard(int pcPrice) => new KeyboardBuilder()
+        .AddTextButton($"Новый комп - {pcPrice}руб. (-2 мин.)", new Payload("newPc"))
+        .AddNewButtonsLine()
+        .AddTextButton("Энергетик - 10руб. (+2 энергии.)", new Payload("energy"))
+        .AddNewButtonsLine()
+        .AddTextButton("Назад", new Payload("back"), ButtonColor.Secondary);
 
     private Keyboard _lastKeyboard;
 
