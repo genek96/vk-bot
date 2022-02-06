@@ -1,26 +1,28 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using VkBot.Storing.Models;
 
 namespace VkBot.Storing;
 
 public class UserStateStorage : IUserStateStorage
 {
-    public UserStateStorage(UserStateContext userStateContext)
+    public UserStateStorage(IServiceProvider serviceProvider)
     {
-        _userStateContext = userStateContext;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task<UserState> GetUserStateAsync(int userId)
     {
-        var user = await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
+        await using var userStateContext = _serviceProvider.GetService<UserStateContext>()!;
+        var user = await userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
         if (user == null)
         {
             user = new(userId)
             {
                 CurrentState = UserState.Initial
             };
-            await _userStateContext.Users.AddAsync(user);
-            await _userStateContext.SaveChangesAsync();
+            await userStateContext.Users.AddAsync(user);
+            await userStateContext.SaveChangesAsync();
             return UserState.Initial;
         }
 
@@ -29,41 +31,39 @@ public class UserStateStorage : IUserStateStorage
 
     public async Task<User?> GetUserAsync(int userId)
     {
-        return await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
+        await using var userStateContext = _serviceProvider.GetService<UserStateContext>()!;
+        return await userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
     }
 
     public async Task SetUserStateAsync(int userId, UserState state)
     {
-        var user = await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
+        await using var userStateContext = _serviceProvider.GetService<UserStateContext>()!;
+        var user = await userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
         if (user == null)
         {
             user = new(userId);
-            await _userStateContext.Users.AddAsync(user);
+            await userStateContext.Users.AddAsync(user);
         }
 
         user.CurrentState = state;
 
-        await _userStateContext.SaveChangesAsync();
+        await userStateContext.SaveChangesAsync();
     }
 
     public async Task UpdateUserAsync(int userId, Action<User> updateAction)
     {
-        var user = await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
+        await using var userStateContext = _serviceProvider.GetService<UserStateContext>()!;
+        var user = await userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
         if (user == null)
         {
             user = new(userId);
-            await _userStateContext.Users.AddAsync(user);
+            await userStateContext.Users.AddAsync(user);
         }
 
         updateAction(user);
 
-        await _userStateContext.SaveChangesAsync();
+        await userStateContext.SaveChangesAsync();
     }
 
-    public void Dispose()
-    {
-        _userStateContext.Dispose();
-    }
-
-    private readonly UserStateContext _userStateContext;
+    private readonly IServiceProvider _serviceProvider;
 }

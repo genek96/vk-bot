@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using VkBot.Storing;
 using VkBot.Storing.Models;
@@ -11,27 +10,27 @@ namespace VkBot.Configuration;
 
 public class LongPollerConfigurator
 {
-    public LongPollerConfigurator(IServiceProvider container)
+    public LongPollerConfigurator(IUserStateStorage userStateStorage, ClientSettings settings)
     {
-        _container = container;
+        _userStateStorage = userStateStorage;
+        _settings = settings;
         _lastKeyboard = _menuKeyboard;
     }
 
     public LongPoller Configure()
     {
-        return new LongPoller(_container.GetService<ClientSettings>()!, ConfigureBuilder, Log.Logger);
+        return new LongPoller(_settings, ConfigureBuilder, Log.Logger);
     }
 
     private EventHandlersChainBuilder ConfigureBuilder(EventHandlersChainBuilder b)
     {
         return b.AddNewMessageHandler(async e =>
             {
-                var state = await GetUserStateAsync(e.Message.FromId);
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
                 return state == UserState.Initial;
             }, async (e, responseSender) =>
             {
-                using var stateRepository = _container.GetService<IUserStateStorage>()!;
-                await stateRepository.UpdateUserAsync(e.Message.FromId, u =>
+                await _userStateStorage.UpdateUserAsync(e.Message.FromId, u =>
                 {
                     u.CurrentState = UserState.Idle;
                     u.Coins = 100;
@@ -39,22 +38,21 @@ public class LongPollerConfigurator
                     u.Energy = 10;
                 });
 
-                var user = await stateRepository.GetUserAsync(e.Message.FromId);
+                var user = await _userStateStorage.GetUserAsync(e.Message.FromId);
                 _lastKeyboard = _menuKeyboard;
                 await responseSender.SendMessageAsync(
                     e.Message.FromId,
-                    "Приветствуем тебя в игре \"Фрилансер\"! С чего планируешь начать?" + GetStatusText(user!),
+                    "Приветствуем тебя в игре \"Фрилансер\"! С чего планируешь начать?\n" + GetStatusText(user!),
                     _menuKeyboard
                 );
             })
             .AddNewMessageHandler(async e =>
             {
-                var state = await GetUserStateAsync(e.Message.FromId);
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
                 return state == UserState.Idle && e.Message.Payload?.Text == "beginWork";
             }, async (e, responder) =>
             {
-                using var stateRepository = _container.GetService<IUserStateStorage>()!;
-                var user = (await stateRepository.GetUserAsync(e.Message.FromId))!;
+                var user = (await _userStateStorage.GetUserAsync(e.Message.FromId))!;
                 if (user.Energy == 0)
                 {
                     await responder.SendMessageAsync(
@@ -65,7 +63,7 @@ public class LongPollerConfigurator
                     return;
                 }
 
-                await stateRepository.UpdateUserAsync(e.Message.FromId, u =>
+                await _userStateStorage.UpdateUserAsync(e.Message.FromId, u =>
                 {
                     u.CurrentState = UserState.Working;
                     u.LastActivityTime = DateTime.UtcNow;
@@ -85,20 +83,18 @@ public class LongPollerConfigurator
             })
             .AddCallbackHandler(async e =>
             {
-                using var stateRepository = _container.GetService<IUserStateStorage>();
-                var state = await stateRepository!.GetUserStateAsync(e.UserId);
+                var state = await _userStateStorage.GetUserStateAsync(e.UserId);
                 return state == UserState.Working && e.Payload.Text == "checkStatus";
             }, async (e, responder) =>
             {
-                using var stateRepository = _container.GetService<IUserStateStorage>()!;
-                var user = (await stateRepository.GetUserAsync(e.UserId))!;
+                var user = (await _userStateStorage.GetUserAsync(e.UserId))!;
                 var diff = DateTime.UtcNow - user.LastActivityTime;
                 if (diff.TotalMinutes >= user.WorkDuration)
                 {
                     var hasCorrections = Random.Shared.Next(1, 6) == 1 && user.Energy > 0;
                     if (hasCorrections)
                     {
-                        await stateRepository.UpdateUserAsync(e.UserId, u =>
+                        await _userStateStorage.UpdateUserAsync(e.UserId, u =>
                         {
                             u.CurrentState = UserState.Working;
                             u.LastActivityTime = DateTime.UtcNow;
@@ -113,7 +109,7 @@ public class LongPollerConfigurator
                     else
                     {
                         var reward = 50 * Random.Shared.Next(1, 3);
-                        await stateRepository.UpdateUserAsync(e.UserId, u =>
+                        await _userStateStorage.UpdateUserAsync(e.UserId, u =>
                         {
                             u.CurrentState = UserState.JustFinishedWok;
                             u.LastActivityTime = DateTime.UtcNow;
@@ -144,12 +140,11 @@ public class LongPollerConfigurator
             })
             .AddNewMessageHandler(async e =>
             {
-                var state = await GetUserStateAsync(e.Message.FromId);
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
                 return state == UserState.Working && e.Message.Payload?.Text == "break";
             }, async (e, responder) =>
             {
-                var stateRepository = _container.GetService<IUserStateStorage>()!;
-                await stateRepository.SetUserStateAsync(e.Message.FromId, UserState.Idle);
+                await _userStateStorage.SetUserStateAsync(e.Message.FromId, UserState.Idle);
                 _lastKeyboard = _menuKeyboard;
                 await responder.SendMessageAsync(
                     e.Message.FromId,
@@ -158,13 +153,12 @@ public class LongPollerConfigurator
             })
             .AddNewMessageHandler(async e =>
             {
-                var state = await GetUserStateAsync(e.Message.FromId);
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
                 return state == UserState.JustFinishedWok && e.Message.Payload?.Text == "notNow";
             }, async (e, responder) =>
             {
-                var stateRepository = _container.GetService<IUserStateStorage>()!;
-                await stateRepository.SetUserStateAsync(e.Message.FromId, UserState.Idle);
-                var user = (await stateRepository.GetUserAsync(e.Message.FromId))!;
+                await _userStateStorage.SetUserStateAsync(e.Message.FromId, UserState.Idle);
+                var user = (await _userStateStorage.GetUserAsync(e.Message.FromId))!;
                 await responder.SendMessageAsync(
                     e.Message.FromId,
                     "Чем займёмся дальше?\n" + GetStatusText(user),
@@ -173,7 +167,7 @@ public class LongPollerConfigurator
             })
             .AddCallbackHandler(async e =>
             {
-                var state = await GetUserStateAsync(e.UserId);
+                var state = await _userStateStorage.GetUserStateAsync(e.UserId);
                 return state == UserState.JustFinishedWok && e.Payload.Text == "repost";
             }, async (e, responder) =>
             {
@@ -182,13 +176,12 @@ public class LongPollerConfigurator
                     e.EventId,
                     new OpenLinkAnswer("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
                 );
-                var stateRepository = _container.GetService<IUserStateStorage>()!;
-                await stateRepository.UpdateUserAsync(e.UserId, u =>
+                await _userStateStorage.UpdateUserAsync(e.UserId, u =>
                 {
                     u.Coins += 50;
                     u.CurrentState = UserState.Idle;
                 });
-                var user = await stateRepository.GetUserAsync(e.UserId);
+                var user = await _userStateStorage.GetUserAsync(e.UserId);
                 await responder.SendMessageAsync(
                     e.UserId,
                     "Чем займёмся дальше?\n" + GetStatusText(user!),
@@ -209,12 +202,6 @@ public class LongPollerConfigurator
                                                       $"Энергия: {user.Energy}\n" +
                                                       $"Время на работу: {user.WorkDuration}";
 
-    private Task<UserState> GetUserStateAsync(int userId)
-    {
-        using var stateRepository = _container.GetService<IUserStateStorage>();
-        return stateRepository!.GetUserStateAsync(userId);
-    }
-
     private Keyboard _menuKeyboard = new KeyboardBuilder()
         .AddTextButton("Начать работать над заказом", new Payload("beginWork"))
         .AddNewButtonsLine()
@@ -224,5 +211,6 @@ public class LongPollerConfigurator
 
     private Keyboard _lastKeyboard;
 
-    private readonly IServiceProvider _container;
+    private readonly IUserStateStorage _userStateStorage;
+    private readonly ClientSettings _settings;
 }

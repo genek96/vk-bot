@@ -2,7 +2,7 @@
 
 namespace VkBot.Storing;
 
-public interface IUserStateStorage: IDisposable
+public interface IUserStateStorage
 {
     Task<UserState> GetUserStateAsync(int userId);
     Task<User?> GetUserAsync(int userId);
