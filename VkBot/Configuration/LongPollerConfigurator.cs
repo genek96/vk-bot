@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 using VkBot.Storing;
 using VkBot.Storing.Models;
 using VkLongPolling;
@@ -17,7 +18,7 @@ public class LongPollerConfigurator
 
     public LongPoller Configure()
     {
-        return new LongPoller(_container.GetService<ClientSettings>()!, ConfigureBuilder);
+        return new LongPoller(_container.GetService<ClientSettings>()!, ConfigureBuilder, Log.Logger);
     }
 
     private EventHandlersChainBuilder ConfigureBuilder(EventHandlersChainBuilder b)
