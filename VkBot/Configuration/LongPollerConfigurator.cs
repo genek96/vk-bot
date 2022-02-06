@@ -285,6 +285,86 @@ public class LongPollerConfigurator
                     _lastKeyboard = GetMenuKeyboard
                 );
             })
+            .AddNewMessageHandler(async e =>
+            {
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
+                return state == UserState.Idle && e.Message.Payload?.Text == "goToSleep";
+            }, async (e, responder) =>
+            {
+                var user = await _userStateStorage.GetUserAsync(e.Message.FromId);
+                if (user!.Energy >= 10)
+                {
+                    await responder.SendMessageAsync(
+                        user.UserId,
+                        "Ты и так полон сил, не время спать!",
+                        _lastKeyboard = GetMenuKeyboard
+                    );
+                    return;
+                }
+
+                await _userStateStorage.UpdateUserAsync(user.UserId, u =>
+                {
+                    u.LastActivityTime = DateTime.UtcNow;
+                    u.CurrentState = UserState.Sleeping;
+                });
+
+                await responder.SendMessageAsync(
+                    user.UserId,
+                    "Добрых снов!",
+                    _lastKeyboard = GetSleepingKeyboard
+                );
+            })
+            .AddCallbackHandler(async e =>
+            {
+                var state = await _userStateStorage.GetUserStateAsync(e.UserId);
+                return state == UserState.Sleeping && e.Payload.Text == "checkStatus";
+            }, async (e, responder) =>
+            {
+                var user = await _userStateStorage.GetUserAsync(e.UserId);
+                var diff = DateTime.UtcNow - user!.LastActivityTime;
+                if (diff.TotalMinutes < 60)
+                {
+                    var remain = Math.Floor(60 - diff.TotalMinutes);
+                    await responder.SendMessageEventAnswerAsync(
+                        e.UserId,
+                        e.EventId,
+                        new SnackbarAnswer($"Осталось спать ещё {remain}")
+                    );
+                    return;
+                }
+
+                await _userStateStorage.UpdateUserAsync(user.UserId, u =>
+                {
+                    u.Energy = 10;
+                    u.CurrentState = UserState.Idle;
+                });
+
+                await responder.SendMessageEventAnswerAsync(
+                    e.UserId,
+                    e.EventId,
+                    new SnackbarAnswer("С добрым утром! Энергия полностью восполнена.")
+                );
+
+                await responder.SendMessageAsync(
+                    user.UserId,
+                    "Чем займёшься?\n" + GetStatusText(user),
+                    _lastKeyboard = GetMenuKeyboard
+                );
+            })
+            .AddNewMessageHandler(async e =>
+            {
+                var state = await _userStateStorage.GetUserStateAsync(e.Message.FromId);
+                return state == UserState.Sleeping && e.Message.Payload?.Text == "break";
+            }, async (e, responder) =>
+            {
+                var user = await _userStateStorage.GetUserAsync(e.Message.FromId);
+                await _userStateStorage.SetUserStateAsync(user!.UserId, UserState.Idle);
+                await responder.SendMessageAsync(
+                    user.UserId,
+                    "Иногда можно и поработать ночью, главное не часто. Чем займёшься?\n" + GetStatusText(user),
+                    _lastKeyboard = GetMenuKeyboard
+                );
+            })
             .AddNewMessageHandler(
                 e => new ValueTask<bool>(true),
                 (e, responder) => responder.SendMessageAsync(
@@ -312,6 +392,11 @@ public class LongPollerConfigurator
         .AddTextButton("Энергетик - 10руб. (+2 энергии.)", new Payload("energy"))
         .AddNewButtonsLine()
         .AddTextButton("Назад", new Payload("back"), ButtonColor.Secondary);
+
+    private Keyboard GetSleepingKeyboard => new KeyboardBuilder()
+        .AddCallbackButton("Когда уже будильник?", new Payload("checkStatus"))
+        .AddNewButtonsLine()
+        .AddTextButton("Прервать сон", new Payload("break"), ButtonColor.Negative);
 
     private Keyboard _lastKeyboard;
 
