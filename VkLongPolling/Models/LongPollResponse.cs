@@ -34,6 +34,7 @@ public record MessageEvent(
     int ConversationMessageId
 ) : IUpdateEventObject;
 
+[JsonConverter(typeof(MessageConverter))]
 public record Message(
     int Id,
     int Date,
@@ -41,9 +42,7 @@ public record Message(
     int FromId,
     string Text,
     int? RandomId,
-    string? Ref,
-    string? RefSource,
-    string? Payload
+    Payload? Payload
 );
 
 public record ClientInfo(

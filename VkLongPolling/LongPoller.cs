@@ -23,7 +23,7 @@ public class LongPoller
 
     public async Task StartPollingAsync(CancellationToken cancellationToken)
     {
-        using VkClient client = new(_settings);
+        using IVkClient client = new VkClient(_settings);
         Responder responder = new(client);
 
         _logger.Information("Acquiring session info...");

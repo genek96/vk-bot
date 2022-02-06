@@ -18,9 +18,9 @@ public class Responder : IResponder
         return _vkClient.SendMessageEventAnswerAsync(userId, eventId, answer);
     }
 
-    public Task<SendMessageResponse> SendMessageAsync(int userId, string message, KeyboardBuilder? keyboardBuilder)
+    public Task<SendMessageResponse> SendMessageAsync(int userId, string message, Keyboard? keyboardBuilder)
     {
-        var keyboard = keyboardBuilder ?? (Keyboard?)null;
+        var keyboard = keyboardBuilder ?? null;
         return _vkClient.SendMessageAsync(userId, message, keyboard);
     }
 

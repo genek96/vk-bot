@@ -3,7 +3,7 @@ using VkBot.Storing.Models;
 
 namespace VkBot.Storing;
 
-public class UserStateStorage: IUserStateStorage, IDisposable
+public class UserStateStorage : IUserStateStorage
 {
     public UserStateStorage(UserStateContext userStateContext)
     {
@@ -15,7 +15,11 @@ public class UserStateStorage: IUserStateStorage, IDisposable
         var user = await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
         if (user == null)
         {
-            await _userStateContext.Users.AddAsync(new User(userId, UserState.Initial));
+            user = new(userId)
+            {
+                CurrentState = UserState.Initial
+            };
+            await _userStateContext.Users.AddAsync(user);
             await _userStateContext.SaveChangesAsync();
             return UserState.Initial;
         }
@@ -23,17 +27,35 @@ public class UserStateStorage: IUserStateStorage, IDisposable
         return user.CurrentState;
     }
 
-    public async Task SetUserState(int userId, UserState state)
+    public async Task<User?> GetUserAsync(int userId)
+    {
+        return await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
+    }
+
+    public async Task SetUserStateAsync(int userId, UserState state)
     {
         var user = await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
         if (user == null)
         {
-            await _userStateContext.Users.AddAsync(new User(userId, state));
+            user = new(userId);
+            await _userStateContext.Users.AddAsync(user);
         }
-        else
+
+        user.CurrentState = state;
+
+        await _userStateContext.SaveChangesAsync();
+    }
+
+    public async Task UpdateUserAsync(int userId, Action<User> updateAction)
+    {
+        var user = await _userStateContext.Users.FirstOrDefaultAsync(x => x.UserId == userId);
+        if (user == null)
         {
-            user.CurrentState = state;
+            user = new(userId);
+            await _userStateContext.Users.AddAsync(user);
         }
+
+        updateAction(user);
 
         await _userStateContext.SaveChangesAsync();
     }

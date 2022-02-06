@@ -3,5 +3,9 @@
 public enum UserState
 {
     Initial,
-    InProgress
+    Idle,
+    Working,
+    JustFinishedWok,
+    InShop,
+    Sleeping
 }
