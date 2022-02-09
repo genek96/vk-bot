@@ -30,7 +30,9 @@ public class LongPoller
         var sessionInfo = await ExceptionHelper.TryDoWithRethrow(
             () => client.GetLongPollSessionAsync(),
             e => _logger.Fatal(e, "Failed to acquire session info"));
-        _logger.Information("Session info was successfully updated. New session server and timestamp: {Server}, {Timestamp}", sessionInfo.Server, sessionInfo.Ts);
+        _logger.Information(
+            "Session info was successfully updated. New session server and timestamp: {Server}, {Timestamp}",
+            sessionInfo.Server, sessionInfo.Ts);
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -62,7 +64,9 @@ public class LongPoller
                     break;
                 }
 
-                _logger.Warning("There is no handler for event: {Event}. Event will be skipped", updateEvent.Object);
+                _logger.Warning(
+                    "There is no handler for event of type {Type}. Event object: {Object}. Event will be skipped",
+                    updateEvent.Type, updateEvent.Object);
             }
 
             sessionInfo = new SessionInfo(sessionInfo.Server, sessionInfo.Key, updatesResponse.Ts!);
